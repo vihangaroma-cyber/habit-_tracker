@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Tracker: Personal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b',
+                        accent: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-spark { height: 35px; width: 80px; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .digit-box { transition: all 0.3s; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-darkbg text-gray-800 dark:text-gray-200 min-h-screen flex flex-col transition-colors duration-300">
+
+    <div id="appScreen" class="flex-1 flex flex-col max-w-[1400px] mx-auto w-full p-2 md:p-6">
+        
+        <div class="flex justify-between items-center mb-4 px-2">
+            <div class="flex items-center gap-2">
+                <div class="text-xl font-bold text-accent"><i class="ri-focus-3-line"></i> Life Tracker</div>
+            </div>
+            <div class="flex gap-2 items-center">
+                <button onclick="backupData()" class="p-2 text-gray-500 hover:text-accent" title="Download Data (.json)"><i class="ri-download-cloud-line text-xl"></i></button>
+                <button onclick="document.getElementById('restoreInput').click()" class="p-2 text-gray-500 hover:text-accent" title="Upload Data (.json)"><i class="ri-upload-cloud-line text-xl"></i></button>
+                <input type="file" id="restoreInput" class="hidden" accept=".json" onchange="restoreData(this)">
+                
+                <div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
+                
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><i class="ri-contrast-2-line text-xl"></i></button>
+            </div>
+        </div>
+
+        <div class="mb-8 bg-white dark:bg-cardbg rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden relative">
+            <div class="absolute top-2 right-2 z-10">
+                <button onclick="toggleTimerSettings()" class="text-gray-400 hover:text-accent p-2"><i class="ri-settings-3-line"></i></button>
+            </div>
+
+            <div id="timerSettings" class="hidden bg-gray-50 dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-center justify-center">
+                <input type="text" id="timerLabelInput" placeholder="Event Name (e.g. Donation Deadline)" class="p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 outline-none focus:border-accent">
+                <input type="datetime-local" id="targetDateInput" class="p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 outline-none focus:border-accent">
+                <button onclick="setTimer()" class="bg-accent text-white px-4 py-2 rounded shadow hover:bg-indigo-600">Set Timer</button>
+            </div>
+
+            <div class="p-6 md:p-8 text-center bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-indigo-500/5">
+                <h2 id="timerTitleDisplay" class="text-sm uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">No Active Countdown</h2>
+                
+                <div class="flex justify-center gap-4 md:gap-8">
+                    <div class="text-center">
+                        <div id="cd-days" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
+                        <div class="text-[10px] text-gray-400 uppercase mt-1">Days</div>
+                    </div>
+                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
+                    <div class="text-center">
+                        <div id="cd-hours" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
+                        <div class="text-[10px] text-gray-400 uppercase mt-1">Hours</div>
+                    </div>
+                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
+                    <div class="text-center">
+                        <div id="cd-minutes" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
+                        <div class="text-[10px] text-gray-400 uppercase mt-1">Mins</div>
+                    </div>
+                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
+                    <div class="text-center">
+                        <div id="cd-seconds" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
+                        <div class="text-[10px] text-gray-400 uppercase mt-1">Secs</div>
+                    </div>
+                </div>
+                
+                <div id="timerTargetDisplay" class="mt-4 text-xs text-gray-400">Click the gear icon to set a date</div>
+            </div>
+        </div>
+
+        <div class="flex gap-4 mb-6 border-b border-gray-300 dark:border-gray-700 pb-2 overflow-x-auto">
+            <button onclick="switchTab('habits')" id="btn-habits" class="tab-btn active px-4 py-2 font-medium border-b-2 border-accent text-accent">Habits & Charts</button>
+            <button onclick="switchTab('todos')" id="btn-todos" class="tab-btn px-4 py-2 font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300">To-Do List</button>
+        </div>
+
+        <div id="tab-habits" class="tab-content active">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="bg-white dark:bg-cardbg p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 flex gap-3">
+                        <input type="text" id="habitInput" placeholder="New Habit..." class="flex-1 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600 focus:border-accent p-2">
+                        <button onclick="addHabit()" class="bg-accent text-white px-6 rounded-lg hover:bg-indigo-600 transition">Add</button>
+                    </div>
+                    
+                    <div class="flex justify-between px-4 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+                        <span>Habit / Trend</span>
+                        <div class="flex gap-4 mr-10">
+                            <span class="w-8 text-center">Day-2</span>
+                            <span class="w-8 text-center">Yest</span>
+                            <span class="w-8 text-center">Today</span>
+                        </div>
+                    </div>
+
+                    <div id="habitList" class="space-y-3 pb-20"></div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-6">
+                    
+                    <div class="bg-white dark:bg-cardbg p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700 sticky top-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg flex items-center gap-2">
+                                <i class="ri-calendar-event-line text-accent"></i> History
+                            </h3>
+                            <input type="month" id="monthPicker" class="bg-gray-100 dark:bg-gray-800 border-none rounded px-3 py-1 text-xs outline-none" onchange="handleDateChange()">
+                        </div>
+
+                        <div class="mb-2 flex justify-between text-xs text-gray-500 font-mono px-1">
+                            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                        </div>
+                        <div id="calendarDays" class="cal-grid mb-4"></div>
+                        
+                        <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <span id="selectedHabitLabel" class="font-bold text-accent block text-sm">Select a habit on the left</span>
+                            <span id="monthlyStats" class="text-xs text-gray-500">to view detailed history</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-cardbg p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700 relative group cursor-pointer" onclick="openFullscreenStats()">
+                        <div class="absolute top-4 right-4 text-gray-400 group-hover:text-accent"><i class="ri-fullscreen-line"></i></div>
+                        <h3 class="font-bold text-lg mb-4">6-Month Trend</h3>
+                        <div class="h-48">
+                            <canvas id="mainTrendChart"></canvas>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-2 text-center uppercase tracking-widest">Click to Expand</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-todos" class="tab-content max-w-3xl mx-auto w-full space-y-6">
+            <div class="bg-white dark:bg-cardbg p-4 rounded-xl shadow flex gap-3">
+                <input type="text" id="todoInput" placeholder="Add a task..." class="flex-1 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600 focus:border-accent p-2">
+                <button onclick="addTodo()" class="bg-green-600 text-white px-6 rounded-lg hover:bg-green-700 transition">Add</button>
+            </div>
+            <div id="todoList" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <div id="fullscreenModal" class="fixed inset-0 z-50 bg-black/90 hidden backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-cardbg w-full max-w-5xl h-[85vh] rounded-2xl flex flex-col border border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1a]">
+                <h2 class="text-2xl font-bold text-accent">Historical Analysis</h2>
+                <button onclick="closeFullscreenStats()" class="p-2 bg-gray-200 dark:bg-gray-700 rounded-full"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-8">
+                <div class="bg-gray-50 dark:bg-[#151515] p-4 rounded-xl h-96">
+                    <canvas id="largeLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= CONFIG & STATE =================
+        const DATA_KEY = 'life_tracker_local_data';
+        let userData = { habits: [], todos: [], timerTarget: null, timerTitle: "" };
+        let selectedHabitId = null;
+        
+        // Chart Instances
+        let sparkCharts = {};
+        let mainTrendChart = null;
+        let largeLineChart = null;
+        let timerInterval = null;
+
+        const today = new Date();
+        let currentViewDate = new Date(); 
+
+        // ================= INIT =================
+        function initApp() {
+            loadData();
+            document.getElementById('monthPicker').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            renderHabits();
+            renderTodos();
+            initTimer();
+            renderCalendar();
+            renderMainTrend();
+        }
+
+        // ================= DATA HANDLING =================
+        function loadData() {
+            const raw = localStorage.getItem(DATA_KEY);
+            if(raw) userData = JSON.parse(raw);
+        }
+
+        function saveData() {
+            localStorage.setItem(DATA_KEY, JSON.stringify(userData));
+        }
+
+        // Backup (Download)
+        function backupData() {
+            const a = document.createElement('a');
+            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userData));
+            a.download = `tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+        }
+
+        // Restore (Upload)
+        function restoreData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if(confirm("This will overwrite your current data. Are you sure?")) {
+                        userData = imported;
+                        saveData();
+                        location.reload(); // Reload to refresh everything cleanly
+                    }
+                } catch(err) { alert("Invalid JSON file"); }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset input
+        }
+
+        // ================= APP LOGIC =================
+
+        // --- TIMER ---
+        function toggleTimerSettings() { document.getElementById('timerSettings').classList.toggle('hidden'); }
+
+        function setTimer() {
+            const dateVal = document.getElementById('targetDateInput').value;
+            const titleVal = document.getElementById('timerLabelInput').value;
+            if(!dateVal) return;
+            userData.timerTarget = dateVal;
+            userData.timerTitle = titleVal || "Event Countdown";
+            saveData(); initTimer(); toggleTimerSettings();
+        }
+
+        function initTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            if(!userData.timerTarget) { document.getElementById('timerTitleDisplay').innerText = "NO ACTIVE EVENT"; return; }
+            document.getElementById('timerTitleDisplay').innerText = userData.timerTitle || "COUNTDOWN";
+            document.getElementById('timerTargetDisplay').innerText = `Target: ${new Date(userData.timerTarget).toLocaleString()}`;
+            const end = new Date(userData.timerTarget).getTime();
+            timerInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const dist = end - now;
+                if(dist < 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timerTitleDisplay').innerText = "EVENT COMPLETED";
+                    ['days','hours','minutes','seconds'].forEach(k => document.getElementById(`cd-${k}`).innerText = "00");
+                    return;
+                }
+                const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+                const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((dist % (1000 * 60)) / 1000);
+                document.getElementById('cd-days').innerText = String(d).padStart(2,'0');
+                document.getElementById('cd-hours').innerText = String(h).padStart(2,'0');
+                document.getElementById('cd-minutes').innerText = String(m).padStart(2,'0');
+                document.getElementById('cd-seconds').innerText = String(s).padStart(2,'0');
+            }, 1000);
+        }
+
+        // --- HABITS ---
+        function addHabit() {
+            const val = document.getElementById('habitInput').value.trim();
+            if(!val) return;
+            userData.habits.push({ id: Date.now(), name: val, history: {} });
+            document.getElementById('habitInput').value = '';
+            saveData(); renderHabits();
+        }
+
+        function deleteHabit(id) {
+            if(confirm("Delete habit?")) {
+                userData.habits = userData.habits.filter(h => h.id !== id);
+                if(selectedHabitId === id) selectedHabitId = null;
+                saveData(); renderHabits(); renderCalendar(); renderMainTrend();
+            }
+        }
+
+        function toggleHabit(id, offset) {
+            const d = new Date(); d.setDate(d.getDate() - offset);
+            const key = d.toISOString().split('T')[0];
+            const habit = userData.habits.find(h => h.id === id);
+            if(habit.history[key]) delete habit.history[key]; else habit.history[key] = true;
+            saveData(); renderHabits(); 
+            if(selectedHabitId === id || !selectedHabitId) { renderCalendar(); renderMainTrend(); }
+        }
+
+        function selectHabit(id) {
+            selectedHabitId = (selectedHabitId === id) ? null : id;
+            renderHabits(); renderCalendar(); renderMainTrend();
+        }
+
+        function renderHabits() {
+            const list = document.getElementById('habitList');
+            list.innerHTML = '';
+            Object.values(sparkCharts).forEach(c => c.destroy()); sparkCharts = {};
+
+            const dates = [0, 1, 2].map(off => {
+                const d = new Date(); d.setDate(d.getDate() - off);
+                return { offset: off, key: d.toISOString().split('T')[0], label: d.getDate() };
+            }).reverse();
+
+            userData.habits.forEach(h => {
+                const isSelected = h.id === selectedHabitId;
+                const el = document.createElement('div');
+                el.className = `flex flex-col md:flex-row items-center gap-4 justify-between p-3 rounded-xl border transition-all 
+                    ${isSelected ? 'bg-indigo-900/10 border-accent dark:bg-gray-800' : 'bg-white dark:bg-cardbg border-transparent hover:border-gray-300 dark:hover:border-gray-600 shadow-sm'}`;
+                
+                let html = `
+                    <div class="flex items-center gap-4 flex-1 w-full cursor-pointer" onclick="selectHabit(${h.id})">
+                        <div class="flex-1"><h3 class="font-bold text-sm md:text-base ${isSelected ? 'text-accent' : 'text-gray-800 dark:text-gray-200'}">${h.name}</h3></div>
+                        <div class="chart-spark"><canvas id="spark-${h.id}"></canvas></div>
+                    </div>
+                    <div class="flex items-center gap-2">`;
+                
+                dates.forEach(d => {
+                    const isDone = !!h.history[d.key];
+                    html += `<button onclick="toggleHabit(${h.id}, ${d.offset})" class="w-8 h-8 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold transition ${isDone ? 'bg-green-500 text-white shadow-green-500/50' : 'bg-gray-100 dark:bg-[#121212] text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}"><span>${d.label}</span></button>`;
+                });
+                html += `<button onclick="deleteHabit(${h.id})" class="text-gray-300 hover:text-red-500 ml-2"><i class="ri-delete-bin-line"></i></button></div>`;
+                el.innerHTML = html; list.appendChild(el); createSparkline(h);
+            });
+        }
+
+        function createSparkline(habit) {
+            const ctx = document.getElementById(`spark-${habit.id}`).getContext('2d');
+            const data = []; const labels = [];
+            for(let i=13; i>=0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                data.push(habit.history[d.toISOString().split('T')[0]] ? 1 : 0); labels.push(i);
+            }
+            sparkCharts[habit.id] = new Chart(ctx, {
+                type: 'line', data: { labels, datasets: [{ data, borderColor: '#6366f1', borderWidth: 2, tension: 0.1, pointRadius: 0, fill: false }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: -0.2, max: 1.2 } } }
+            });
+        }
+
+        // --- CALENDAR & CHARTS ---
+        function handleDateChange() {
+            const val = document.getElementById('monthPicker').value;
+            if(val) { const [y, m] = val.split('-'); currentViewDate = new Date(parseInt(y), parseInt(m) - 1, 1); }
+            renderCalendar(); renderMainTrend();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarDays'); grid.innerHTML = '';
+            const year = currentViewDate.getFullYear(); const month = currentViewDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); const startDay = new Date(year, month, 1).getDay();
+
+            for(let i=0; i<startDay; i++) grid.appendChild(document.createElement('div'));
+            
+            const habit = selectedHabitId ? userData.habits.find(h => h.id === selectedHabitId) : null;
+            document.getElementById('selectedHabitLabel').innerText = habit ? habit.name : "General Overview";
+            document.getElementById('monthlyStats').innerText = habit ? "Detailed history below" : "Select a habit to view details";
+
+            let count = 0;
+            for(let d=1; d<=daysInMonth; d++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const isDone = habit && !!habit.history[dateKey];
+                if(isDone) count++;
+                const el = document.createElement('div'); el.innerText = d;
+                el.className = `h-8 flex items-center justify-center rounded text-xs transition ${isDone ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 dark:bg-[#151515] text-gray-400'}`;
+                grid.appendChild(el);
+            }
+            if(habit) document.getElementById('monthlyStats').innerText = `Completed ${count}/${daysInMonth} days`;
+        }
+
+        function getSixMonthData() {
+            const labels = []; const data = []; const baseDate = new Date();
+            for(let i=5; i>=0; i--) {
+                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+                labels.push(d.toLocaleString('default', { month: 'short' }));
+                const targets = selectedHabitId ? userData.habits.filter(h => h.id === selectedHabitId) : userData.habits;
+                let done = 0; let possible = 0; const dim = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+                if(targets.length) targets.forEach(h => {
+                    possible += dim;
+                    Object.keys(h.history).forEach(k => { if(k.startsWith(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)) done++; });
+                });
+                data.push(possible > 0 ? Math.round(done/possible*100) : 0);
+            }
+            return { labels, data };
+        }
+
+        function renderMainTrend() {
+            const ctx = document.getElementById('mainTrendChart').getContext('2d');
+            const { labels, data } = getSixMonthData();
+            if(mainTrendChart) mainTrendChart.destroy();
+            mainTrendChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#818cf8', fill: true, backgroundColor: 'rgba(129, 140, 248, 0.1)', tension: 0.3 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } } });
+        }
+        function openFullscreenStats() { document.getElementById('fullscreenModal').classList.remove('hidden'); renderLargeChart(); }
+        function closeFullscreenStats() { document.getElementById('fullscreenModal').classList.add('hidden'); }
+        function renderLargeChart() {
+            const ctx = document.getElementById('largeLineChart').getContext('2d');
+            const { labels, data } = getSixMonthData();
+            if(largeLineChart) largeLineChart.destroy();
+            largeLineChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Consistency %', data, backgroundColor: '#6366f1', borderRadius: 6 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } } });
+        }
+
+        // --- TODO ---
+        function addTodo() {
+            const val = document.getElementById('todoInput').value.trim();
+            if(!val) return;
+            userData.todos.push({ id: Date.now(), text: val, done: false });
+            document.getElementById('todoInput').value = ''; saveData(); renderTodos();
+        }
+        function renderTodos() {
+            const list = document.getElementById('todoList'); list.innerHTML = '';
+            const sorted = [...userData.todos].sort((a,b) => a.done === b.done ? 0 : a.done ? 1 : -1);
+            sorted.forEach(t => {
+                const el = document.createElement('div');
+                el.className = `flex items-center justify-between p-3 rounded-lg border ${t.done ? 'bg-gray-50 dark:bg-gray-900 opacity-60' : 'bg-white dark:bg-cardbg border-gray-200 dark:border-gray-700'}`;
+                el.innerHTML = `<div class="flex items-center gap-3 cursor-pointer flex-1" onclick="tTodo(${t.id})"><div class="w-5 h-5 rounded border flex items-center justify-center ${t.done ? 'bg-green-500 border-green-500 text-white' : 'border-gray-400'}">${t.done ? '✓' : ''}</div><span class="${t.done ? 'line-through' : ''}">${t.text}</span></div><button onclick="dTodo(${t.id})" class="text-red-400">✕</button>`;
+                list.appendChild(el);
+            });
+        }
+        function tTodo(id) { const t = userData.todos.find(x => x.id === id); t.done = !t.done; saveData(); renderTodos(); }
+        function dTodo(id) { userData.todos = userData.todos.filter(x => x.id !== id); saveData(); renderTodos(); }
+
+        // --- UTIL ---
+        function switchTab(t) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => { el.classList.remove('border-accent','text-accent'); el.classList.add('border-transparent','text-gray-500'); });
+            document.getElementById(`tab-${t}`).classList.add('active');
+            document.getElementById(`btn-${t}`).classList.add('border-accent','text-accent');
+            document.getElementById(`btn-${t}`).classList.remove('border-transparent','text-gray-500');
+            if(t==='habits') { renderHabits(); renderMainTrend(); }
+        }
+        function toggleTheme() { document.documentElement.classList.toggle('dark'); }
+
+        // Boot
+        initApp();
+    </script>
+</body>
+</html>
