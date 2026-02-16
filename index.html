@@ -1,453 +1,1498 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Tracker: Personal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkbg: '#0f172a',
-                        cardbg: '#1e293b',
-                        accent: '#6366f1',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .chart-spark { height: 35px; width: 80px; }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .digit-box { transition: all 0.3s; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time & Habit Tracker</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#111826;
+      --panel2:#0f1522;
+      --text:#e6edf6;
+      --muted:#a7b4c6;
+      --border:#233044;
+      --accent:#6ee7ff;
+      --good:#5cf2b7;
+      --bad:#ff6b8a;
+      --warn:#ffd166;
+      --shadow: 0 8px 30px rgba(0,0,0,.35);
+      --radius:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(110,231,255,.12), transparent 60%),
+                  radial-gradient(900px 500px at 95% 10%, rgba(92,242,183,.10), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    header{
+      position:sticky; top:0; z-index:10;
+      background: rgba(11,15,20,.72);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid rgba(35,48,68,.6);
+    }
+
+    .wrap{ max-width: 1200px; margin:0 auto; padding: 18px 16px; }
+
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      display:flex; gap:12px; align-items:center;
+    }
+
+    .logo{
+      width:42px; height:42px; border-radius:14px;
+      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(92,242,183,.8));
+      box-shadow: var(--shadow);
+    }
+
+    h1{ font-size: 18px; margin:0; letter-spacing:.2px; }
+    .sub{ margin:2px 0 0; color:var(--muted); font-size: 12px; }
+
+    .toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+    button, .btn{
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      color:var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .04s ease, border-color .15s ease, background .15s ease;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    button:hover{ border-color: rgba(110,231,255,.55); }
+    button:active{ transform: translateY(1px); }
+    button.primary{
+      border-color: rgba(110,231,255,.55);
+      box-shadow: 0 0 0 3px rgba(110,231,255,.12);
+    }
+    button.danger{ border-color: rgba(255,107,138,.55); }
+    button.ghost{ background: transparent; }
+
+    input, select, textarea{
+      background: rgba(255,255,255,.03);
+      border:1px solid var(--border);
+      color:var(--text);
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-size: 13px;
+      outline:none;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(110,231,255,.55);
+      box-shadow: 0 0 0 3px rgba(110,231,255,.12);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(17,24,38,.88), rgba(15,21,34,.88));
+      border:1px solid rgba(35,48,68,.8);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .card .hd{
+      padding: 14px 14px 12px;
+      border-bottom: 1px solid rgba(35,48,68,.7);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      flex-wrap:wrap;
+    }
+    .card .hd h2{ margin:0; font-size: 14px; letter-spacing:.2px; }
+    .card .bd{ padding: 14px; }
+
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .row > *{ flex: 0 0 auto; }
+    .row .grow{ flex: 1 1 auto; min-width: 210px; }
+
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(35,48,68,.85);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mono{ font-family: var(--mono); }
+
+    .habits{
+      display:flex; flex-direction:column; gap:10px;
+    }
+
+    .habit{
+      border:1px solid rgba(35,48,68,.8);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .habitTop{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .habitName{
+      display:flex; gap:10px; align-items:center;
+      min-width: 220px;
+    }
+
+    .dot{
+      width: 12px; height:12px; border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.10);
+    }
+
+    .habitName strong{ font-size: 14px; }
+    .habitMeta{ color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+    .habitControls{
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .checks{
+      margin-top: 10px;
+      display:grid;
+      grid-template-columns: 180px repeat(5, minmax(90px, 1fr));
+      gap: 8px;
+      align-items:center;
+    }
+
+    @media (max-width: 980px){
+      .checks{ grid-template-columns: 1fr; }
+    }
+
+    .checks .hdr{
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .checkCell{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      padding: 10px;
+      border: 1px dashed rgba(35,48,68,.9);
+      border-radius: 14px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .checkCell label{ font-size: 12px; color: var(--muted); }
+
+    .small{ font-size: 12px; color: var(--muted); }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+    }
+
+    th, td{
+      text-align:left;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(35,48,68,.65);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th{ color: var(--muted); font-weight: 700; }
+
+    .right{ text-align:right; }
+
+    .kpi{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 980px){
+      .kpi{ grid-template-columns: 1fr; }
+    }
+    .kpi .box{
+      border: 1px solid rgba(35,48,68,.8);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,.02);
+    }
+    .kpi .box .label{ color: var(--muted); font-size: 12px; }
+    .kpi .box .value{ font-size: 18px; margin-top: 6px; font-weight: 800; }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .split{ grid-template-columns: 1fr; }
+    }
+
+    .legend{ margin-top: 10px; display:flex; flex-direction:column; gap:6px; }
+    .legendItem{ display:flex; gap:10px; align-items:center; color: var(--muted); font-size: 12px; }
+    .sw{ width:10px; height:10px; border-radius: 4px; }
+
+    .muted{ color: var(--muted); }
+
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      max-width: 360px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(35,48,68,.8);
+      background: rgba(17,24,38,.92);
+      box-shadow: var(--shadow);
+      display:none;
+    }
+
+    .modalBackdrop{
+      position: fixed; inset:0;
+      background: rgba(0,0,0,.6);
+      display:none;
+      align-items:center; justify-content:center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .modal{
+      width: min(720px, 100%);
+      background: linear-gradient(180deg, rgba(17,24,38,.96), rgba(15,21,34,.96));
+      border: 1px solid rgba(35,48,68,.85);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal .hd{ padding: 14px; border-bottom: 1px solid rgba(35,48,68,.7); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .modal .bd{ padding: 14px; }
+    .modal .ft{ padding: 14px; border-top: 1px solid rgba(35,48,68,.7); display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+
+    .hint{ font-size: 12px; color: var(--muted); line-height:1.4; }
+
+    .hr{ height:1px; background: rgba(35,48,68,.65); margin: 12px 0; }
+
+    .chip{
+      display:inline-flex; gap:6px; align-items:center;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid rgba(35,48,68,.8);
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .ok{ color: var(--good); }
+    .bad{ color: var(--bad); }
+
+    .fileInput{ display:none; }
+
+    .footerNote{ color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+    /* Countdown (top of page) */
+    .countGrid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 980px){ .countGrid{ grid-template-columns: 1fr; } }
+    .countBox{
+      border: 1px solid rgba(35,48,68,.8);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,.02);
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .countNum{ font-size: clamp(30px, 5vw, 56px); font-weight: 950; letter-spacing: -0.02em; line-height: 1; }
+    .countLbl{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .14em; }
+
+  </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkbg text-gray-800 dark:text-gray-200 min-h-screen flex flex-col transition-colors duration-300">
-
-    <div id="appScreen" class="flex-1 flex flex-col max-w-[1400px] mx-auto w-full p-2 md:p-6">
-        
-        <div class="flex justify-between items-center mb-4 px-2">
-            <div class="flex items-center gap-2">
-                <div class="text-xl font-bold text-accent"><i class="ri-focus-3-line"></i> Life Tracker</div>
-            </div>
-            <div class="flex gap-2 items-center">
-                <button onclick="backupData()" class="p-2 text-gray-500 hover:text-accent" title="Download Data (.json)"><i class="ri-download-cloud-line text-xl"></i></button>
-                <button onclick="document.getElementById('restoreInput').click()" class="p-2 text-gray-500 hover:text-accent" title="Upload Data (.json)"><i class="ri-upload-cloud-line text-xl"></i></button>
-                <input type="file" id="restoreInput" class="hidden" accept=".json" onchange="restoreData(this)">
-                
-                <div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
-                
-                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><i class="ri-contrast-2-line text-xl"></i></button>
-            </div>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>Time & Habit Tracker</h1>
+            <div class="sub">Local-first • Dark theme • Export/Import JSON • 2-year history</div>
+          </div>
         </div>
 
-        <div class="mb-8 bg-white dark:bg-cardbg rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden relative">
-            <div class="absolute top-2 right-2 z-10">
-                <button onclick="toggleTimerSettings()" class="text-gray-400 hover:text-accent p-2"><i class="ri-settings-3-line"></i></button>
-            </div>
+        <div class="toolbar">
+          <button class="primary" id="btnAddHabit">+ Add Habit</button>
+          <button id="btnExport">Download JSON</button>
+          <input class="fileInput" type="file" id="fileImport" accept="application/json" />
+          <button id="btnImport">Upload JSON</button>
+          <button id="btnBackup">Save Backup</button>
+          <button class="ghost" id="btnBackups">Backups</button>
+        </div>
+      </div>
+    </div>
+  </header>
 
-            <div id="timerSettings" class="hidden bg-gray-50 dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-center justify-center">
-                <input type="text" id="timerLabelInput" placeholder="Event Name (e.g. Donation Deadline)" class="p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 outline-none focus:border-accent">
-                <input type="datetime-local" id="targetDateInput" class="p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 outline-none focus:border-accent">
-                <button onclick="setTimer()" class="bg-accent text-white px-4 py-2 rounded shadow hover:bg-indigo-600">Set Timer</button>
-            </div>
+  <main class="wrap">
 
-            <div class="p-6 md:p-8 text-center bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-indigo-500/5">
-                <h2 id="timerTitleDisplay" class="text-sm uppercase tracking-[0.2em] text-gray-500 font-bold mb-4">No Active Countdown</h2>
-                
-                <div class="flex justify-center gap-4 md:gap-8">
-                    <div class="text-center">
-                        <div id="cd-days" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
-                        <div class="text-[10px] text-gray-400 uppercase mt-1">Days</div>
-                    </div>
-                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
-                    <div class="text-center">
-                        <div id="cd-hours" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
-                        <div class="text-[10px] text-gray-400 uppercase mt-1">Hours</div>
-                    </div>
-                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
-                    <div class="text-center">
-                        <div id="cd-minutes" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
-                        <div class="text-[10px] text-gray-400 uppercase mt-1">Mins</div>
-                    </div>
-                    <div class="text-3xl md:text-5xl font-thin text-gray-300">:</div>
-                    <div class="text-center">
-                        <div id="cd-seconds" class="text-3xl md:text-5xl font-mono font-bold text-accent digit-box">00</div>
-                        <div class="text-[10px] text-gray-400 uppercase mt-1">Secs</div>
-                    </div>
+    <section class="card" aria-label="Countdown" style="margin-top:14px;">
+      <div class="hd">
+        <h2>Target countdown (saved across refresh)</h2>
+        <div class="row">
+          <div class="pill">
+            <span>Target date</span>
+            <input id="targetDateTop" placeholder="YYYY/MM/DD or YYYY-MM-DD" />
+          </div>
+          <button id="btnCalcTop" class="primary">Update</button>
+          <button id="btnClearTarget" class="ghost">Clear</button>
+        </div>
+      </div>
+      <div class="bd">
+        <div class="countGrid">
+          <div class="countBox"><div class="countNum mono" id="bigDays">—</div><div class="countLbl">Days</div></div>
+          <div class="countBox"><div class="countNum mono" id="bigHours">—</div><div class="countLbl">Hours</div></div>
+          <div class="countBox"><div class="countNum mono" id="bigMins">—</div><div class="countLbl">Minutes</div></div>
+        </div>
+        <div id="bigNote" class="hint" style="margin-top:10px;">Set a target date above. It will be remembered even after refresh.</div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card" aria-label="Habits">
+        <div class="hd">
+          <h2>Habits (mark done up to 5 days from a base date, and track time)</h2>
+          <div class="row">
+            <div class="pill">
+              <span>Base date</span>
+              <input id="baseDate" type="date" />
+            </div>
+            <button class="ghost" id="btnGoToday">Today</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="row" style="margin-bottom:10px;">
+            <div class="grow">
+              <div class="hint">
+                • Use <b>Start/Stop</b> to time a habit, or <b>Add Time</b> to log minutes manually.
+                <br>• Checkboxes mark a habit as <b>done</b> for each day (base date + 0..4 days).
+              </div>
+            </div>
+          </div>
+
+          <div id="habits" class="habits"></div>
+
+          <div class="footerNote">Data is stored in your browser (localStorage). Use backups + JSON export to keep it safe.</div>
+        </div>
+      </section>
+
+      <aside class="card" aria-label="Summary and tools">
+        <div class="hd">
+          <h2>Summary & Tools</h2>
+          <div class="chip"><span class="mono" id="clockNow">—</span></div>
+        </div>
+        <div class="bd">
+          <div class="kpi">
+            <div class="box">
+              <div class="label">Selected day total</div>
+              <div class="value" id="kpiDayTotal">0h 0m</div>
+            </div>
+            <div class="box">
+              <div class="label">Done habits (selected day)</div>
+              <div class="value" id="kpiDone">0 / 0</div>
+            </div>
+            <div class="box">
+              <div class="label">All-time total</div>
+              <div class="value" id="kpiAll">0h 0m</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="split">
+            <div>
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div style="font-weight:800;">Pie chart (selected day)</div>
+                  <div class="small">Time spent per habit for the selected day</div>
                 </div>
-                
-                <div id="timerTargetDisplay" class="mt-4 text-xs text-gray-400">Click the gear icon to set a date</div>
+              </div>
+              <canvas id="pie" width="360" height="260" style="width:100%; border:1px solid rgba(35,48,68,.65); border-radius:16px; background: rgba(255,255,255,.02);"></canvas>
+              <div id="legend" class="legend"></div>
             </div>
-        </div>
 
-        <div class="flex gap-4 mb-6 border-b border-gray-300 dark:border-gray-700 pb-2 overflow-x-auto">
-            <button onclick="switchTab('habits')" id="btn-habits" class="tab-btn active px-4 py-2 font-medium border-b-2 border-accent text-accent">Habits & Charts</button>
-            <button onclick="switchTab('todos')" id="btn-todos" class="tab-btn px-4 py-2 font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300">To-Do List</button>
-        </div>
+            <div>
+              <div style="font-weight:800;">Time available calculator</div>
+              <div class="small">Counts days/hours from <span class="mono">now</span> to a target date.</div>
+              <div class="row" style="margin-top:8px;">
+                <input id="targetDate" class="grow" placeholder="YYYY/MM/DD or YYYY-MM-DD" />
+                <button id="btnCalc">Calculate</button>
+              </div>
+              <div id="calcOut" class="hint" style="margin-top:10px;">Enter a date (example: <span class="mono">2026/08/01</span>).</div>
 
-        <div id="tab-habits" class="tab-content active">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                <div class="lg:col-span-7 space-y-4">
-                    <div class="bg-white dark:bg-cardbg p-4 rounded-xl shadow border border-gray-200 dark:border-gray-700 flex gap-3">
-                        <input type="text" id="habitInput" placeholder="New Habit..." class="flex-1 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600 focus:border-accent p-2">
-                        <button onclick="addHabit()" class="bg-accent text-white px-6 rounded-lg hover:bg-indigo-600 transition">Add</button>
-                    </div>
-                    
-                    <div class="flex justify-between px-4 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-                        <span>Habit / Trend</span>
-                        <div class="flex gap-4 mr-10">
-                            <span class="w-8 text-center">Day-2</span>
-                            <span class="w-8 text-center">Yest</span>
-                            <span class="w-8 text-center">Today</span>
-                        </div>
-                    </div>
+              <div class="hr"></div>
 
-                    <div id="habitList" class="space-y-3 pb-20"></div>
+              <div style="font-weight:800;">History (last 2 years)</div>
+              <div class="small">Browse your activity totals and completion history.</div>
+
+              <div class="row" style="margin-top:8px;">
+                <input id="histFrom" type="date" />
+                <input id="histTo" type="date" />
+                <button id="btnHistApply">Apply</button>
+              </div>
+
+              <div class="row" style="margin-top:8px; justify-content:space-between;">
+                <div class="small" id="histMeta">—</div>
+                <div class="row">
+                  <button class="ghost" id="btnHistPrev">◀</button>
+                  <button class="ghost" id="btnHistNext">▶</button>
                 </div>
+              </div>
 
-                <div class="lg:col-span-5 space-y-6">
-                    
-                    <div class="bg-white dark:bg-cardbg p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700 sticky top-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="font-bold text-lg flex items-center gap-2">
-                                <i class="ri-calendar-event-line text-accent"></i> History
-                            </h3>
-                            <input type="month" id="monthPicker" class="bg-gray-100 dark:bg-gray-800 border-none rounded px-3 py-1 text-xs outline-none" onchange="handleDateChange()">
-                        </div>
-
-                        <div class="mb-2 flex justify-between text-xs text-gray-500 font-mono px-1">
-                            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-                        </div>
-                        <div id="calendarDays" class="cal-grid mb-4"></div>
-                        
-                        <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
-                            <span id="selectedHabitLabel" class="font-bold text-accent block text-sm">Select a habit on the left</span>
-                            <span id="monthlyStats" class="text-xs text-gray-500">to view detailed history</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-cardbg p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700 relative group cursor-pointer" onclick="openFullscreenStats()">
-                        <div class="absolute top-4 right-4 text-gray-400 group-hover:text-accent"><i class="ri-fullscreen-line"></i></div>
-                        <h3 class="font-bold text-lg mb-4">6-Month Trend</h3>
-                        <div class="h-48">
-                            <canvas id="mainTrendChart"></canvas>
-                        </div>
-                        <p class="text-[10px] text-gray-400 mt-2 text-center uppercase tracking-widest">Click to Expand</p>
-                    </div>
-
-                </div>
+              <div style="max-height: 330px; overflow:auto; border:1px solid rgba(35,48,68,.65); border-radius:16px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Done</th>
+                      <th class="right">Time</th>
+                      <th class="right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="histBody"></tbody>
+                </table>
+              </div>
             </div>
-        </div>
+          </div>
 
-        <div id="tab-todos" class="tab-content max-w-3xl mx-auto w-full space-y-6">
-            <div class="bg-white dark:bg-cardbg p-4 rounded-xl shadow flex gap-3">
-                <input type="text" id="todoInput" placeholder="Add a task..." class="flex-1 bg-transparent outline-none border-b border-gray-300 dark:border-gray-600 focus:border-accent p-2">
-                <button onclick="addTodo()" class="bg-green-600 text-white px-6 rounded-lg hover:bg-green-700 transition">Add</button>
-            </div>
-            <div id="todoList" class="space-y-2"></div>
         </div>
+      </aside>
     </div>
 
-    <div id="fullscreenModal" class="fixed inset-0 z-50 bg-black/90 hidden backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-cardbg w-full max-w-5xl h-[85vh] rounded-2xl flex flex-col border border-gray-700">
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1a]">
-                <h2 class="text-2xl font-bold text-accent">Historical Analysis</h2>
-                <button onclick="closeFullscreenStats()" class="p-2 bg-gray-200 dark:bg-gray-700 rounded-full"><i class="ri-close-line"></i></button>
-            </div>
-            <div class="p-6 overflow-y-auto flex-1 space-y-8">
-                <div class="bg-gray-50 dark:bg-[#151515] p-4 rounded-xl h-96">
-                    <canvas id="largeLineChart"></canvas>
-                </div>
-            </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- Modal -->
+    <div class="modalBackdrop" id="modalBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="hd">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div id="modalTitle" style="font-weight:900;">—</div>
+            <div id="modalSub" class="small">—</div>
+          </div>
+          <button class="ghost" id="btnModalClose">✕</button>
         </div>
+        <div class="bd" id="modalBody"></div>
+        <div class="ft" id="modalFoot"></div>
+      </div>
     </div>
 
-    <script>
-        // ================= CONFIG & STATE =================
-        const DATA_KEY = 'life_tracker_local_data';
-        let userData = { habits: [], todos: [], timerTarget: null, timerTitle: "" };
-        let selectedHabitId = null;
-        
-        // Chart Instances
-        let sparkCharts = {};
-        let mainTrendChart = null;
-        let largeLineChart = null;
-        let timerInterval = null;
+  </main>
 
-        const today = new Date();
-        let currentViewDate = new Date(); 
+  <script>
+    /*********************
+     * Data Model
+     *********************/
+    const STORAGE_KEY = 'tht_data_v1';
+    const MAX_BACKUPS = 30;
+    const TARGET_DATE_KEY = 'tht_target_date_v1';
 
-        // ================= INIT =================
-        function initApp() {
-            loadData();
-            document.getElementById('monthPicker').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            renderHabits();
-            renderTodos();
-            initTimer();
-            renderCalendar();
-            renderMainTrend();
+    /**
+     * data = {
+     *   version: 1,
+     *   habits: [{id, name, color}...],
+     *   logs: {
+     *     'YYYY-MM-DD': {
+     *       [habitId]: { done: boolean, seconds: number }
+     *     }
+     *   },
+     *   running: { [habitId]: { startMs:number, date:'YYYY-MM-DD' } },
+     *   backups: [{id, ts, label, snapshot}]
+     * }
+     */
+
+    function uid(){
+      return Math.random().toString(16).slice(2) + '-' + Date.now().toString(16);
+    }
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function pad2(n){ return String(n).padStart(2,'0'); }
+
+    function fmtDate(d){
+      const y = d.getFullYear();
+      const m = pad2(d.getMonth()+1);
+      const da = pad2(d.getDate());
+      return `${y}-${m}-${da}`;
+    }
+
+    function parseDateInput(s){
+      if (!s) return null;
+      const t = String(s).trim();
+      // Accept YYYY-MM-DD or YYYY/MM/DD
+      const m = t.match(/^\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s*$/);
+      if (!m) return null;
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      const da = Number(m[3]);
+      if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(da)) return null;
+      if (mo < 1 || mo > 12) return null;
+      if (da < 1 || da > 31) return null;
+      // local midnight
+      const d = new Date(y, mo-1, da, 0, 0, 0, 0);
+      // validate rollover
+      if (d.getFullYear() !== y || d.getMonth() !== mo-1 || d.getDate() !== da) return null;
+      return d;
+    }
+
+    function fmtDuration(seconds){
+      seconds = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(seconds/3600);
+      const m = Math.floor((seconds%3600)/60);
+      const s = seconds%60;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function fmtHM(seconds){
+      seconds = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(seconds/3600);
+      const m = Math.floor((seconds%3600)/60);
+      return `${h}h ${m}m`;
+    }
+
+    function hueColor(i){
+      // stable vivid-ish palette
+      const h = (i * 57) % 360;
+      return `hsl(${h} 85% 60%)`;
+    }
+
+    function getDefaultData(){
+      return {
+        version: 1,
+        habits: [
+          { id: uid(), name: 'Study', color: hueColor(0) },
+          { id: uid(), name: 'Workout', color: hueColor(1) },
+          { id: uid(), name: 'Reading', color: hueColor(2) },
+        ],
+        logs: {},
+        running: {},
+        backups: []
+      };
+    }
+
+    function loadData(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return getDefaultData();
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return getDefaultData();
+        // basic migration guard
+        if (!parsed.version) parsed.version = 1;
+        if (!Array.isArray(parsed.habits)) parsed.habits = [];
+        if (!parsed.logs || typeof parsed.logs !== 'object') parsed.logs = {};
+        if (!parsed.running || typeof parsed.running !== 'object') parsed.running = {};
+        if (!Array.isArray(parsed.backups)) parsed.backups = [];
+        // ensure colors
+        parsed.habits.forEach((h,i)=>{ if (!h.color) h.color = hueColor(i); });
+        return parsed;
+      }catch{
+        return getDefaultData();
+      }
+    }
+
+    function saveData(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function ensureDay(dateStr){
+      if (!data.logs[dateStr]) data.logs[dateStr] = {};
+      return data.logs[dateStr];
+    }
+
+    function ensureEntry(dateStr, habitId){
+      const day = ensureDay(dateStr);
+      if (!day[habitId]) day[habitId] = { done:false, seconds:0 };
+      if (typeof day[habitId].done !== 'boolean') day[habitId].done = !!day[habitId].done;
+      day[habitId].seconds = Number(day[habitId].seconds || 0);
+      if (!Number.isFinite(day[habitId].seconds) || day[habitId].seconds < 0) day[habitId].seconds = 0;
+      return day[habitId];
+    }
+
+    function dayRange(baseStr, days){
+      const base = parseDateInput(baseStr);
+      if (!base) return [];
+      const out = [];
+      for (let i=0;i<days;i++){
+        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+        out.push(fmtDate(d));
+      }
+      return out;
+    }
+
+    function isRunning(habitId){
+      return !!data.running[habitId];
+    }
+
+    function getRunningElapsedSec(habitId){
+      const r = data.running[habitId];
+      if (!r) return 0;
+      const now = Date.now();
+      return Math.max(0, Math.floor((now - r.startMs)/1000));
+    }
+
+    function getDayTotalSeconds(dateStr){
+      const day = data.logs[dateStr];
+      if (!day) return 0;
+      return Object.values(day).reduce((acc, e)=> acc + (Number(e.seconds)||0), 0);
+    }
+
+    function getAllTimeSeconds(){
+      let sum = 0;
+      for (const d of Object.keys(data.logs)){
+        sum += getDayTotalSeconds(d);
+      }
+      // add currently running elapsed too
+      for (const hid of Object.keys(data.running)){
+        sum += getRunningElapsedSec(hid);
+      }
+      return sum;
+    }
+
+    function getHabitTotalSeconds(habitId){
+      let sum = 0;
+      for (const d of Object.keys(data.logs)){
+        const day = data.logs[d];
+        if (day && day[habitId]) sum += Number(day[habitId].seconds || 0);
+      }
+      if (data.running[habitId]) sum += getRunningElapsedSec(habitId);
+      return sum;
+    }
+
+    function getHabitDaySeconds(habitId, dateStr){
+      const e = data.logs?.[dateStr]?.[habitId];
+      const base = Number(e?.seconds || 0);
+      const runningExtra = (data.running[habitId] && data.running[habitId].date === dateStr)
+        ? getRunningElapsedSec(habitId)
+        : 0;
+      return base + runningExtra;
+    }
+
+    function countDone(dateStr){
+      const total = data.habits.length;
+      let done = 0;
+      for (const h of data.habits){
+        const e = data.logs?.[dateStr]?.[h.id];
+        if (e?.done) done++;
+      }
+      return {done, total};
+    }
+
+    /*********************
+     * UI helpers
+     *********************/
+    const $ = (sel)=> document.querySelector(sel);
+    const el = (tag, attrs={}, children=[])=>{
+      const n = document.createElement(tag);
+      for (const [k,v] of Object.entries(attrs||{})){
+        if (k === 'class') n.className = v;
+        else if (k === 'style') n.setAttribute('style', v);
+        else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+        else if (v === true) n.setAttribute(k, '');
+        else if (v !== false && v != null) n.setAttribute(k, String(v));
+      }
+      for (const c of (children||[])){
+        if (c == null) continue;
+        if (typeof c === 'string') n.appendChild(document.createTextNode(c));
+        else n.appendChild(c);
+      }
+      return n;
+    };
+
+    function toast(msg){
+      const t = $('#toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(toast._tm);
+      toast._tm = setTimeout(()=>{ t.style.display='none'; }, 2400);
+    }
+
+    function setTargetInputs(v){
+      if ($('#targetDate')) $('#targetDate').value = v || '';
+      if ($('#targetDateTop')) $('#targetDateTop').value = v || '';
+    }
+
+    function updateCountdownUI(parts){
+      const d = $('#bigDays');
+      const h = $('#bigHours');
+      const m = $('#bigMins');
+      const note = $('#bigNote');
+      if (!d || !h || !m || !note) return;
+
+      if (!parts){
+        d.textContent = '—';
+        h.textContent = '—';
+        m.textContent = '—';
+        note.textContent = 'Set a target date above. It will be remembered even after refresh.';
+        return;
+      }
+
+      d.textContent = String(parts.days);
+      h.textContent = String(parts.hours);
+      m.textContent = String(parts.minutes);
+
+      if (parts.past){
+        note.innerHTML = `Target <span class="mono">${parts.target}</span> has already started.`;
+      } else {
+        note.innerHTML = `Time remaining until <b>start</b> of <span class="mono">${parts.target}</span> (local time).`;
+      }
+    }
+
+    function computeCountdownParts(targetDateStr){
+      const d = parseDateInput(targetDateStr);
+      if (!d) return null;
+      const now = new Date();
+      const targetStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+      let ms = targetStart - now;
+      const past = ms <= 0;
+      ms = Math.max(0, ms);
+      const totalSeconds = Math.floor(ms/1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      return { target: fmtDate(d), days, hours, minutes, past };
+    }
+
+    function updateCountdownLive(){
+      const saved = localStorage.getItem(TARGET_DATE_KEY);
+      if (!saved) return;
+      const parts = computeCountdownParts(saved);
+      if (parts) updateCountdownUI(parts);
+    }
+
+
+    function openModal(title, subtitle, bodyNodes, footerButtons){
+      $('#modalTitle').textContent = title;
+      $('#modalSub').textContent = subtitle || '';
+      const body = $('#modalBody');
+      const foot = $('#modalFoot');
+      body.innerHTML = '';
+      foot.innerHTML = '';
+      (bodyNodes||[]).forEach(n=> body.appendChild(n));
+      (footerButtons||[]).forEach(n=> foot.appendChild(n));
+      const bd = $('#modalBackdrop');
+      bd.style.display = 'flex';
+      bd.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(){
+      const bd = $('#modalBackdrop');
+      bd.style.display = 'none';
+      bd.setAttribute('aria-hidden', 'true');
+    }
+
+    $('#btnModalClose').addEventListener('click', closeModal);
+    $('#modalBackdrop').addEventListener('click', (e)=>{ if (e.target === $('#modalBackdrop')) closeModal(); });
+
+    /*********************
+     * Rendering
+     *********************/
+    let data = loadData();
+
+    // Selected base date controls the 5-day marking window.
+    let baseDateStr = fmtDate(new Date());
+    // History paging
+    let histPage = 0;
+    const HIST_PAGE_SIZE = 30;
+
+    function setBaseDate(dateStr){
+      baseDateStr = dateStr;
+      $('#baseDate').value = baseDateStr;
+      render();
+    }
+
+    function renderHabits(){
+      const container = $('#habits');
+      container.innerHTML = '';
+      if (data.habits.length === 0){
+        container.appendChild(el('div', {class:'hint'}, [
+          'No habits yet. Click ',
+          el('b', {}, ['+ Add Habit']),
+          ' to create your first one.'
+        ]));
+        return;
+      }
+
+      const days = dayRange(baseDateStr, 5);
+
+      data.habits.forEach((h, idx)=>{
+        const isRun = isRunning(h.id);
+        const day0 = days[0];
+
+        const dot = el('div', {class:'dot', style:`background:${h.color}; box-shadow: 0 0 0 4px rgba(110,231,255,.0);`});
+
+        const nameCol = el('div', {}, [
+          el('strong', {}, [h.name]),
+          el('div', {class:'habitMeta'}, [
+            `Selected day: `, el('span', {class:'mono'}, [day0]),
+            ` • Day time: `, el('span', {class:'mono'}, [fmtDuration(getHabitDaySeconds(h.id, day0))]),
+            ` • Total: `, el('span', {class:'mono'}, [fmtDuration(getHabitTotalSeconds(h.id))])
+          ])
+        ]);
+
+        const left = el('div', {class:'habitName'}, [dot, nameCol]);
+
+        const btnStartStop = el('button', {
+          class: isRun ? 'danger' : 'primary',
+          onclick: ()=> isRun ? stopTimer(h.id) : startTimer(h.id)
+        }, [isRun ? 'Stop' : 'Start']);
+
+        const btnAdd = el('button', {
+          onclick: ()=> openAddTimeModal(h.id)
+        }, ['+ Add Time']);
+
+        const btnEdit = el('button', { class:'ghost', onclick: ()=> openEditHabitModal(h.id) }, ['Edit']);
+        const btnDel  = el('button', { class:'danger', onclick: ()=> confirmDeleteHabit(h.id) }, ['Delete']);
+
+        const ctrls = el('div', {class:'habitControls'}, [btnStartStop, btnAdd, btnEdit, btnDel]);
+
+        const top = el('div', {class:'habitTop'}, [left, ctrls]);
+
+        // 5-day done checkboxes
+        const grid = el('div', {class:'checks'});
+        grid.appendChild(el('div', {class:'hdr'}, ['Mark done (up to 5 days)']));
+        days.forEach(d=>{
+          const dd = parseDateInput(d);
+          const lbl = dd ? dd.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'2-digit'}) : d;
+          grid.appendChild(el('div', {class:'hdr mono'}, [lbl]));
+        });
+
+        grid.appendChild(el('div', {class:'small'}, ['Done?']));
+        days.forEach(d=>{
+          const entry = ensureEntry(d, h.id);
+          const cb = el('input', {type:'checkbox'});
+          cb.checked = !!entry.done;
+          cb.addEventListener('change', ()=>{
+            const e = ensureEntry(d, h.id);
+            e.done = cb.checked;
+            saveData();
+            renderSummary();
+            renderHistory();
+          });
+          const cell = el('div', {class:'checkCell'}, [
+            el('label', {}, [el('span', {class:'mono'}, [d])]),
+            cb
+          ]);
+          grid.appendChild(cell);
+        });
+
+        const card = el('div', {class:'habit'}, [top, grid]);
+        container.appendChild(card);
+      });
+    }
+
+    function renderSummary(){
+      const day0 = baseDateStr;
+      const totalDay = getDayTotalSeconds(day0) + Object.values(data.running)
+        .filter(r => r.date === day0)
+        .reduce((acc, r)=> acc + Math.max(0, Math.floor((Date.now()-r.startMs)/1000)), 0);
+
+      $('#kpiDayTotal').textContent = fmtHM(totalDay);
+      const d = countDone(day0);
+      $('#kpiDone').textContent = `${d.done} / ${d.total}`;
+      $('#kpiAll').textContent = fmtHM(getAllTimeSeconds());
+
+      // Pie chart for selected day
+      const items = data.habits
+        .map((h, i)=>({
+          label: h.name,
+          value: getHabitDaySeconds(h.id, day0),
+          color: h.color || hueColor(i)
+        }))
+        .filter(x=> x.value > 0);
+
+      drawPie(items);
+      renderLegend(items);
+    }
+
+    function renderLegend(items){
+      const L = $('#legend');
+      L.innerHTML = '';
+      if (!items.length){
+        L.appendChild(el('div', {class:'hint'}, ['No time logged for the selected day. Start a timer or add time.']));
+        return;
+      }
+      const total = items.reduce((a,b)=>a+b.value,0) || 1;
+      items.sort((a,b)=>b.value-a.value).forEach(it=>{
+        const pct = Math.round((it.value/total)*100);
+        L.appendChild(el('div', {class:'legendItem'}, [
+          el('div', {class:'sw', style:`background:${it.color}`}),
+          el('div', {}, [`${it.label} — ${fmtDuration(it.value)} (${pct}%)`])
+        ]));
+      });
+    }
+
+    function drawPie(items){
+      const c = $('#pie');
+      const ctx = c.getContext('2d');
+
+      // HiDPI crisp
+      const cssW = c.clientWidth;
+      const cssH = c.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      c.width = Math.floor(cssW * dpr);
+      c.height = Math.floor(cssH * dpr);
+      ctx.scale(dpr, dpr);
+
+      // clear
+      ctx.clearRect(0,0,cssW,cssH);
+
+      // background subtle grid
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(35,48,68,.35)';
+      ctx.lineWidth = 1;
+      for (let x=20;x<cssW;x+=40){
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cssH); ctx.stroke();
+      }
+      for (let y=20;y<cssH;y+=40){
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cssW,y); ctx.stroke();
+      }
+
+      const total = items.reduce((a,b)=>a+b.value,0);
+      const cx = cssW/2;
+      const cy = cssH/2;
+      const r = Math.min(cssW, cssH) * 0.33;
+
+      // ring background
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,.04)';
+      ctx.fill();
+
+      if (!items.length || total <= 0){
+        ctx.fillStyle = 'rgba(230,237,246,.75)';
+        ctx.font = '700 13px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('No data for selected day', cx, cy);
+        return;
+      }
+
+      let start = -Math.PI/2;
+      items.forEach(it=>{
+        const ang = (it.value/total) * Math.PI*2;
+        const end = start + ang;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, end);
+        ctx.closePath();
+        ctx.fillStyle = it.color;
+        ctx.globalAlpha = 0.92;
+        ctx.fill();
+        start = end;
+      });
+
+      // hole
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r*0.62, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(11,15,20,.92)';
+      ctx.fill();
+
+      // total label
+      ctx.fillStyle = 'rgba(230,237,246,.92)';
+      ctx.font = '800 16px ' + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fmtHM(total), cx, cy-6);
+      ctx.fillStyle = 'rgba(167,180,198,.9)';
+      ctx.font = '600 12px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillText('total', cx, cy+14);
+    }
+
+    function renderHistory(){
+      // Default: last 2 years
+      const today = new Date();
+      const maxBack = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 730);
+
+      const from = parseDateInput($('#histFrom').value) || maxBack;
+      const to = parseDateInput($('#histTo').value) || today;
+
+      // clamp range to max 2 years window (still allows shorter ranges)
+      const fromClamped = (from < maxBack) ? maxBack : from;
+      const toClamped = (to > today) ? today : to;
+
+      const start = new Date(fromClamped.getFullYear(), fromClamped.getMonth(), fromClamped.getDate());
+      const end = new Date(toClamped.getFullYear(), toClamped.getMonth(), toClamped.getDate());
+
+      // build date list descending
+      const dates = [];
+      for (let d=new Date(end); d >= start; d.setDate(d.getDate()-1)){
+        dates.push(fmtDate(d));
+      }
+
+      const totalRows = dates.length;
+      const maxPage = Math.max(0, Math.ceil(totalRows / HIST_PAGE_SIZE)-1);
+      histPage = clamp(histPage, 0, maxPage);
+
+      const pageStart = histPage * HIST_PAGE_SIZE;
+      const pageEnd = Math.min(totalRows, pageStart + HIST_PAGE_SIZE);
+      const slice = dates.slice(pageStart, pageEnd);
+
+      $('#histMeta').textContent = `Showing ${pageStart+1}-${pageEnd} of ${totalRows} days`;
+
+      const body = $('#histBody');
+      body.innerHTML = '';
+
+      slice.forEach(ds=>{
+        const dt = parseDateInput(ds);
+        const pretty = dt ? dt.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'2-digit', weekday:'short'}) : ds;
+        const dayTotal = getDayTotalSeconds(ds);
+        const {done,total} = countDone(ds);
+        const row = el('tr', {}, [
+          el('td', {}, [el('div', {class:'mono'}, [ds]), el('div', {class:'small'}, [pretty])]),
+          el('td', {}, [`${done}/${total}`]),
+          el('td', {class:'right mono'}, [fmtHM(dayTotal)]),
+          el('td', {class:'right'}, [
+            el('button', {class:'ghost', onclick: ()=> setBaseDate(ds)}, ['View'])
+          ])
+        ]);
+        body.appendChild(row);
+      });
+    }
+
+    function render(){
+      // keep habit colors stable
+      data.habits.forEach((h,i)=>{ if (!h.color) h.color = hueColor(i); });
+      saveData();
+      renderHabits();
+      renderSummary();
+      renderHistory();
+    }
+
+    /*********************
+     * Actions
+     *********************/
+    function openAddHabitModal(){
+      const name = el('input', {class:'grow', placeholder:'Habit name (e.g., Coding, Study, Workout)'});
+      const color = el('input', {type:'color', value:'#6ee7ff'});
+      const body = [
+        el('div', {class:'row'}, [
+          el('div', {class:'grow'}, [el('div', {class:'small'}, ['Name']), name]),
+          el('div', {}, [el('div', {class:'small'}, ['Color']), color])
+        ]),
+        el('div', {class:'hint', style:'margin-top:10px;'}, ['Tip: You can edit this later.'])
+      ];
+
+      const btnCancel = el('button', {class:'ghost', onclick: closeModal}, ['Cancel']);
+      const btnSave = el('button', {class:'primary', onclick: ()=>{
+        const n = name.value.trim();
+        if (!n){ toast('Please enter a habit name.'); return; }
+        data.habits.push({ id: uid(), name: n, color: color.value || hueColor(data.habits.length) });
+        saveData();
+        closeModal();
+        toast('Habit added.');
+        render();
+      }}, ['Add']);
+
+      openModal('Add Habit', 'Create a new habit to track time + completion.', body, [btnCancel, btnSave]);
+      setTimeout(()=> name.focus(), 0);
+    }
+
+    function openEditHabitModal(habitId){
+      const h = data.habits.find(x=>x.id===habitId);
+      if (!h) return;
+
+      const name = el('input', {class:'grow', value:h.name});
+      const color = el('input', {type:'color', value: normalizeHex(h.color)});
+
+      const body = [
+        el('div', {class:'row'}, [
+          el('div', {class:'grow'}, [el('div', {class:'small'}, ['Name']), name]),
+          el('div', {}, [el('div', {class:'small'}, ['Color']), color])
+        ]),
+        el('div', {class:'hint', style:'margin-top:10px;'}, ['Renaming a habit keeps its existing time/history.'])
+      ];
+
+      const btnCancel = el('button', {class:'ghost', onclick: closeModal}, ['Cancel']);
+      const btnSave = el('button', {class:'primary', onclick: ()=>{
+        const n = name.value.trim();
+        if (!n){ toast('Please enter a habit name.'); return; }
+        h.name = n;
+        h.color = color.value || h.color;
+        saveData();
+        closeModal();
+        toast('Habit updated.');
+        render();
+      }}, ['Save']);
+
+      openModal('Edit Habit', 'Change name or color.', body, [btnCancel, btnSave]);
+      setTimeout(()=> name.focus(), 0);
+    }
+
+    function normalizeHex(c){
+      // Convert hsl/rgba to a reasonable default if needed
+      const s = String(c || '').trim();
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)){
+        if (s.length === 4){
+          const r=s[1], g=s[2], b=s[3];
+          return `#${r}${r}${g}${g}${b}${b}`;
         }
+        return s;
+      }
+      return '#6ee7ff';
+    }
 
-        // ================= DATA HANDLING =================
-        function loadData() {
-            const raw = localStorage.getItem(DATA_KEY);
-            if(raw) userData = JSON.parse(raw);
+    function confirmDeleteHabit(habitId){
+      const h = data.habits.find(x=>x.id===habitId);
+      if (!h) return;
+
+      const body = [
+        el('div', {class:'hint'}, [
+          'This will remove the habit ',
+          el('b', {}, [h.name]),
+          ' and also delete its logged time and done-marks from all days.'
+        ])
+      ];
+
+      const btnCancel = el('button', {class:'ghost', onclick: closeModal}, ['Cancel']);
+      const btnDel = el('button', {class:'danger', onclick: ()=>{
+        // stop if running
+        if (data.running[habitId]) delete data.running[habitId];
+        // remove from habits
+        data.habits = data.habits.filter(x=>x.id!==habitId);
+        // remove from logs
+        for (const d of Object.keys(data.logs)){
+          if (data.logs[d] && data.logs[d][habitId]) delete data.logs[d][habitId];
+          if (data.logs[d] && Object.keys(data.logs[d]).length === 0) delete data.logs[d];
         }
+        saveData();
+        closeModal();
+        toast('Habit deleted.');
+        render();
+      }}, ['Delete']);
 
-        function saveData() {
-            localStorage.setItem(DATA_KEY, JSON.stringify(userData));
+      openModal('Delete Habit', 'This cannot be undone (unless you restore a backup).', body, [btnCancel, btnDel]);
+    }
+
+    function openAddTimeModal(habitId){
+      const h = data.habits.find(x=>x.id===habitId);
+      if (!h) return;
+
+      const date = el('input', {type:'date', value: baseDateStr});
+      const minutes = el('input', {type:'number', min:'1', step:'1', placeholder:'Minutes', value:'30'});
+      const alsoDone = el('input', {type:'checkbox'});
+      alsoDone.checked = true;
+
+      const body = [
+        el('div', {class:'row'}, [
+          el('div', {}, [el('div', {class:'small'}, ['Date']), date]),
+          el('div', {class:'grow'}, [el('div', {class:'small'}, ['Minutes']), minutes]),
+        ]),
+        el('div', {class:'row', style:'margin-top:10px;'}, [
+          el('label', {class:'pill'}, [alsoDone, el('span', {}, ['Mark as done too'])])
+        ]),
+        el('div', {class:'hint', style:'margin-top:10px;'}, ['You can add time for any day in the last 2 years (or beyond).'])
+      ];
+
+      const btnCancel = el('button', {class:'ghost', onclick: closeModal}, ['Cancel']);
+      const btnSave = el('button', {class:'primary', onclick: ()=>{
+        const ds = date.value;
+        const mins = Number(minutes.value);
+        if (!ds){ toast('Pick a date.'); return; }
+        if (!Number.isFinite(mins) || mins <= 0){ toast('Enter minutes > 0.'); return; }
+        const e = ensureEntry(ds, habitId);
+        e.seconds += Math.round(mins * 60);
+        if (alsoDone.checked) e.done = true;
+        saveData();
+        closeModal();
+        toast('Time added.');
+        render();
+      }}, ['Add']);
+
+      openModal('Add Time', `Manual time entry for: ${h.name}`, body, [btnCancel, btnSave]);
+      setTimeout(()=> minutes.select(), 0);
+    }
+
+    function startTimer(habitId){
+      // stop any running timer for the same habit (reset)
+      if (data.running[habitId]){
+        toast('This habit is already running.');
+        return;
+      }
+      const ds = baseDateStr;
+      data.running[habitId] = { startMs: Date.now(), date: ds };
+      saveData();
+      toast('Timer started.');
+      render();
+    }
+
+    function stopTimer(habitId){
+      const r = data.running[habitId];
+      if (!r) return;
+      const elapsed = Math.max(0, Math.floor((Date.now() - r.startMs)/1000));
+      const e = ensureEntry(r.date, habitId);
+      e.seconds += elapsed;
+      delete data.running[habitId];
+      saveData();
+      toast(`Timer stopped (+${fmtDuration(elapsed)}).`);
+      render();
+    }
+
+    function exportJson(){
+      // Strip any transient rendering state: keep running timers (so you can restore them), backups too.
+      const payload = JSON.stringify(data, null, 2);
+      const blob = new Blob([payload], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `time-habit-tracker_${fmtDate(new Date())}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importJsonFile(file){
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const incoming = JSON.parse(String(reader.result||''));
+          if (!incoming || typeof incoming !== 'object') throw new Error('Invalid JSON');
+          if (!Array.isArray(incoming.habits) || typeof incoming.logs !== 'object') throw new Error('Not a tracker backup');
+
+          // Basic sanitize
+          incoming.version = 1;
+          if (!incoming.running || typeof incoming.running !== 'object') incoming.running = {};
+          if (!Array.isArray(incoming.backups)) incoming.backups = [];
+          incoming.habits.forEach((h,i)=>{ if (!h.id) h.id = uid(); if (!h.color) h.color = hueColor(i); });
+
+          data = incoming;
+          saveData();
+          toast('Imported successfully.');
+          render();
+        }catch(e){
+          toast('Import failed: invalid JSON format.');
         }
+      };
+      reader.readAsText(file);
+    }
 
-        // Backup (Download)
-        function backupData() {
-            const a = document.createElement('a');
-            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(userData));
-            a.download = `tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a); a.click(); a.remove();
-        }
+    function saveBackup(){
+      const snapshot = JSON.parse(JSON.stringify(data));
+      const b = { id: uid(), ts: Date.now(), label: `Backup ${new Date().toLocaleString()}`, snapshot };
+      data.backups.unshift(b);
+      data.backups = data.backups.slice(0, MAX_BACKUPS);
+      saveData();
+      toast('Backup saved.');
+      render();
+    }
 
-        // Restore (Upload)
-        function restoreData(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    if(confirm("This will overwrite your current data. Are you sure?")) {
-                        userData = imported;
-                        saveData();
-                        location.reload(); // Reload to refresh everything cleanly
-                    }
-                } catch(err) { alert("Invalid JSON file"); }
-            };
-            reader.readAsText(file);
-            input.value = ''; // Reset input
-        }
+    function openBackupsModal(){
+      const body = [];
+      if (!data.backups.length){
+        body.push(el('div', {class:'hint'}, ['No backups saved yet. Click ', el('b',{},['Save Backup']), ' to create one.']));
+      } else {
+        const list = el('div', {style:'display:flex; flex-direction:column; gap:10px;'});
+        data.backups.forEach((b)=>{
+          const when = new Date(b.ts).toLocaleString();
+          const row = el('div', {class:'habit'}, [
+            el('div', {class:'row', style:'justify-content:space-between; align-items:flex-start;'}, [
+              el('div', {}, [
+                el('div', {style:'font-weight:900;'}, [b.label || 'Backup']),
+                el('div', {class:'small mono'}, [when])
+              ]),
+              el('div', {class:'row'}, [
+                el('button', {class:'primary', onclick: ()=>{
+                  // restore
+                  data = JSON.parse(JSON.stringify(b.snapshot));
+                  saveData();
+                  closeModal();
+                  toast('Backup restored.');
+                  render();
+                }}, ['Restore']),
+                el('button', {class:'danger', onclick: ()=>{
+                  data.backups = data.backups.filter(x=>x.id !== b.id);
+                  saveData();
+                  closeModal();
+                  toast('Backup deleted.');
+                  render();
+                }}, ['Delete'])
+              ])
+            ]),
+            el('div', {class:'hint', style:'margin-top:8px;'}, ['Restoring replaces current data. Export JSON first if you want an extra copy.'])
+          ]);
+          list.appendChild(row);
+        });
+        body.push(list);
+      }
 
-        // ================= APP LOGIC =================
+      const btnClose = el('button', {class:'primary', onclick: closeModal}, ['Close']);
+      openModal('Backups', 'Saved snapshots stored in your browser.', body, [btnClose]);
+    }
 
-        // --- TIMER ---
-        function toggleTimerSettings() { document.getElementById('timerSettings').classList.toggle('hidden'); }
+    function calcAvailability(raw){
+      const rawIn = (raw ?? '').toString().trim();
+      const t = rawIn || ($('#targetDateTop')?.value || $('#targetDate')?.value || '').trim();
+      const d = parseDateInput(t);
 
-        function setTimer() {
-            const dateVal = document.getElementById('targetDateInput').value;
-            const titleVal = document.getElementById('timerLabelInput').value;
-            if(!dateVal) return;
-            userData.timerTarget = dateVal;
-            userData.timerTitle = titleVal || "Event Countdown";
-            saveData(); initTimer(); toggleTimerSettings();
-        }
+      if (!d){
+        updateCountdownUI(null);
+        $('#calcOut').innerHTML = `❌ Invalid date. Use <span class="mono">YYYY/MM/DD</span> or <span class="mono">YYYY-MM-DD</span>.`;
+        return;
+      }
 
-        function initTimer() {
-            if(timerInterval) clearInterval(timerInterval);
-            if(!userData.timerTarget) { document.getElementById('timerTitleDisplay').innerText = "NO ACTIVE EVENT"; return; }
-            document.getElementById('timerTitleDisplay').innerText = userData.timerTitle || "COUNTDOWN";
-            document.getElementById('timerTargetDisplay').innerText = `Target: ${new Date(userData.timerTarget).toLocaleString()}`;
-            const end = new Date(userData.timerTarget).getTime();
-            timerInterval = setInterval(() => {
-                const now = new Date().getTime();
-                const dist = end - now;
-                if(dist < 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('timerTitleDisplay').innerText = "EVENT COMPLETED";
-                    ['days','hours','minutes','seconds'].forEach(k => document.getElementById(`cd-${k}`).innerText = "00");
-                    return;
-                }
-                const d = Math.floor(dist / (1000 * 60 * 60 * 24));
-                const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
-                const s = Math.floor((dist % (1000 * 60)) / 1000);
-                document.getElementById('cd-days').innerText = String(d).padStart(2,'0');
-                document.getElementById('cd-hours').innerText = String(h).padStart(2,'0');
-                document.getElementById('cd-minutes').innerText = String(m).padStart(2,'0');
-                document.getElementById('cd-seconds').innerText = String(s).padStart(2,'0');
-            }, 1000);
-        }
+      // Canonical stored form
+      const canonical = fmtDate(d);
+      localStorage.setItem(TARGET_DATE_KEY, canonical);
+      setTargetInputs(canonical);
 
-        // --- HABITS ---
-        function addHabit() {
-            const val = document.getElementById('habitInput').value.trim();
-            if(!val) return;
-            userData.habits.push({ id: Date.now(), name: val, history: {} });
-            document.getElementById('habitInput').value = '';
-            saveData(); renderHabits();
-        }
+      const now = new Date();
+      const targetStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+      const targetEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
 
-        function deleteHabit(id) {
-            if(confirm("Delete habit?")) {
-                userData.habits = userData.habits.filter(h => h.id !== id);
-                if(selectedHabitId === id) selectedHabitId = null;
-                saveData(); renderHabits(); renderCalendar(); renderMainTrend();
-            }
-        }
+      const msStart = targetStart - now;
+      const msEnd = targetEnd - now;
 
-        function toggleHabit(id, offset) {
-            const d = new Date(); d.setDate(d.getDate() - offset);
-            const key = d.toISOString().split('T')[0];
-            const habit = userData.habits.find(h => h.id === id);
-            if(habit.history[key]) delete habit.history[key]; else habit.history[key] = true;
-            saveData(); renderHabits(); 
-            if(selectedHabitId === id || !selectedHabitId) { renderCalendar(); renderMainTrend(); }
-        }
+      function fmtMs(ms){
+        if (ms <= 0) return { ok:false, text:'0 days 0 hours 0 minutes' };
+        const totalSeconds = Math.floor(ms/1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400)/3600);
+        const minutes = Math.floor((totalSeconds % 3600)/60);
+        return { ok:true, text:`${days} days ${hours} hours ${minutes} minutes`, days, hours, minutes };
+      }
 
-        function selectHabit(id) {
-            selectedHabitId = (selectedHabitId === id) ? null : id;
-            renderHabits(); renderCalendar(); renderMainTrend();
-        }
+      const a = fmtMs(msStart);
+      const b = fmtMs(msEnd);
 
-        function renderHabits() {
-            const list = document.getElementById('habitList');
-            list.innerHTML = '';
-            Object.values(sparkCharts).forEach(c => c.destroy()); sparkCharts = {};
+      const startLabel = targetStart.toLocaleString(undefined, { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const endLabel = targetEnd.toLocaleString(undefined, { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-            const dates = [0, 1, 2].map(off => {
-                const d = new Date(); d.setDate(d.getDate() - off);
-                return { offset: off, key: d.toISOString().split('T')[0], label: d.getDate() };
-            }).reverse();
+      // Top-of-page big countdown
+      updateCountdownUI({ target: canonical, days: a.days ?? 0, hours: a.hours ?? 0, minutes: a.minutes ?? 0, past: !a.ok });
 
-            userData.habits.forEach(h => {
-                const isSelected = h.id === selectedHabitId;
-                const el = document.createElement('div');
-                el.className = `flex flex-col md:flex-row items-center gap-4 justify-between p-3 rounded-xl border transition-all 
-                    ${isSelected ? 'bg-indigo-900/10 border-accent dark:bg-gray-800' : 'bg-white dark:bg-cardbg border-transparent hover:border-gray-300 dark:hover:border-gray-600 shadow-sm'}`;
-                
-                let html = `
-                    <div class="flex items-center gap-4 flex-1 w-full cursor-pointer" onclick="selectHabit(${h.id})">
-                        <div class="flex-1"><h3 class="font-bold text-sm md:text-base ${isSelected ? 'text-accent' : 'text-gray-800 dark:text-gray-200'}">${h.name}</h3></div>
-                        <div class="chart-spark"><canvas id="spark-${h.id}"></canvas></div>
-                    </div>
-                    <div class="flex items-center gap-2">`;
-                
-                dates.forEach(d => {
-                    const isDone = !!h.history[d.key];
-                    html += `<button onclick="toggleHabit(${h.id}, ${d.offset})" class="w-8 h-8 md:w-10 md:h-10 rounded-lg flex flex-col items-center justify-center text-xs font-bold transition ${isDone ? 'bg-green-500 text-white shadow-green-500/50' : 'bg-gray-100 dark:bg-[#121212] text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}"><span>${d.label}</span></button>`;
-                });
-                html += `<button onclick="deleteHabit(${h.id})" class="text-gray-300 hover:text-red-500 ml-2"><i class="ri-delete-bin-line"></i></button></div>`;
-                el.innerHTML = html; list.appendChild(el); createSparkline(h);
-            });
-        }
+      // Right-panel detailed output
+      $('#calcOut').innerHTML = `
+        <div class="pill" style="margin-bottom:8px;">
+          <span>Target</span>
+          <span class="mono">${canonical}</span>
+        </div>
+        <div class="hint">
+          <b>Until start of day</b> (${startLabel}): <span class="mono ${a.ok?'ok':'bad'}">${a.text}</span><br>
+          <b>Until end of day</b> (${endLabel}): <span class="mono ${b.ok?'ok':'bad'}">${b.text}</span>
+        </div>
+      `;
+    }
 
-        function createSparkline(habit) {
-            const ctx = document.getElementById(`spark-${habit.id}`).getContext('2d');
-            const data = []; const labels = [];
-            for(let i=13; i>=0; i--) {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                data.push(habit.history[d.toISOString().split('T')[0]] ? 1 : 0); labels.push(i);
-            }
-            sparkCharts[habit.id] = new Chart(ctx, {
-                type: 'line', data: { labels, datasets: [{ data, borderColor: '#6366f1', borderWidth: 2, tension: 0.1, pointRadius: 0, fill: false }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: -0.2, max: 1.2 } } }
-            });
-        }
+    function clearTargetCountdown(){
+      localStorage.removeItem(TARGET_DATE_KEY);
+      setTargetInputs('');
+      updateCountdownUI(null);
+      $('#calcOut').innerHTML = `Enter a date (example: <span class="mono">2026/08/01</span>).`;
+      toast('Target cleared.');
+    }
 
-        // --- CALENDAR & CHARTS ---
-        function handleDateChange() {
-            const val = document.getElementById('monthPicker').value;
-            if(val) { const [y, m] = val.split('-'); currentViewDate = new Date(parseInt(y), parseInt(m) - 1, 1); }
-            renderCalendar(); renderMainTrend();
-        }
+    function tickClock(){
+      const now = new Date();
+      $('#clockNow').textContent = now.toLocaleString();
+    }
 
-        function renderCalendar() {
-            const grid = document.getElementById('calendarDays'); grid.innerHTML = '';
-            const year = currentViewDate.getFullYear(); const month = currentViewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate(); const startDay = new Date(year, month, 1).getDay();
+    /*********************
+     * Wire up events
+     *********************/
+    $('#btnAddHabit').addEventListener('click', openAddHabitModal);
+    $('#btnExport').addEventListener('click', exportJson);
 
-            for(let i=0; i<startDay; i++) grid.appendChild(document.createElement('div'));
-            
-            const habit = selectedHabitId ? userData.habits.find(h => h.id === selectedHabitId) : null;
-            document.getElementById('selectedHabitLabel').innerText = habit ? habit.name : "General Overview";
-            document.getElementById('monthlyStats').innerText = habit ? "Detailed history below" : "Select a habit to view details";
+    $('#btnImport').addEventListener('click', ()=> $('#fileImport').click());
+    $('#fileImport').addEventListener('change', (e)=>{
+      const f = e.target.files?.[0];
+      if (f) importJsonFile(f);
+      e.target.value = '';
+    });
 
-            let count = 0;
-            for(let d=1; d<=daysInMonth; d++) {
-                const dateKey = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const isDone = habit && !!habit.history[dateKey];
-                if(isDone) count++;
-                const el = document.createElement('div'); el.innerText = d;
-                el.className = `h-8 flex items-center justify-center rounded text-xs transition ${isDone ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 dark:bg-[#151515] text-gray-400'}`;
-                grid.appendChild(el);
-            }
-            if(habit) document.getElementById('monthlyStats').innerText = `Completed ${count}/${daysInMonth} days`;
-        }
+    $('#btnBackup').addEventListener('click', saveBackup);
+    $('#btnBackups').addEventListener('click', openBackupsModal);
 
-        function getSixMonthData() {
-            const labels = []; const data = []; const baseDate = new Date();
-            for(let i=5; i>=0; i--) {
-                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
-                labels.push(d.toLocaleString('default', { month: 'short' }));
-                const targets = selectedHabitId ? userData.habits.filter(h => h.id === selectedHabitId) : userData.habits;
-                let done = 0; let possible = 0; const dim = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
-                if(targets.length) targets.forEach(h => {
-                    possible += dim;
-                    Object.keys(h.history).forEach(k => { if(k.startsWith(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)) done++; });
-                });
-                data.push(possible > 0 ? Math.round(done/possible*100) : 0);
-            }
-            return { labels, data };
-        }
+    // Top countdown controls
+    $('#btnCalcTop').addEventListener('click', ()=> calcAvailability($('#targetDateTop').value));
+    $('#targetDateTop').addEventListener('keydown', (e)=>{ if (e.key === 'Enter') calcAvailability($('#targetDateTop').value); });
+    $('#btnClearTarget').addEventListener('click', clearTargetCountdown);
 
-        function renderMainTrend() {
-            const ctx = document.getElementById('mainTrendChart').getContext('2d');
-            const { labels, data } = getSixMonthData();
-            if(mainTrendChart) mainTrendChart.destroy();
-            mainTrendChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ data, borderColor: '#818cf8', fill: true, backgroundColor: 'rgba(129, 140, 248, 0.1)', tension: 0.3 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } } });
-        }
-        function openFullscreenStats() { document.getElementById('fullscreenModal').classList.remove('hidden'); renderLargeChart(); }
-        function closeFullscreenStats() { document.getElementById('fullscreenModal').classList.add('hidden'); }
-        function renderLargeChart() {
-            const ctx = document.getElementById('largeLineChart').getContext('2d');
-            const { labels, data } = getSixMonthData();
-            if(largeLineChart) largeLineChart.destroy();
-            largeLineChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Consistency %', data, backgroundColor: '#6366f1', borderRadius: 6 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } } });
-        }
+    // Keep both target inputs in sync (typing in one updates the other on blur)
+    $('#targetDateTop').addEventListener('change', ()=> setTargetInputs($('#targetDateTop').value.trim()));
+    $('#targetDate').addEventListener('change', ()=> setTargetInputs($('#targetDate').value.trim()));
 
-        // --- TODO ---
-        function addTodo() {
-            const val = document.getElementById('todoInput').value.trim();
-            if(!val) return;
-            userData.todos.push({ id: Date.now(), text: val, done: false });
-            document.getElementById('todoInput').value = ''; saveData(); renderTodos();
-        }
-        function renderTodos() {
-            const list = document.getElementById('todoList'); list.innerHTML = '';
-            const sorted = [...userData.todos].sort((a,b) => a.done === b.done ? 0 : a.done ? 1 : -1);
-            sorted.forEach(t => {
-                const el = document.createElement('div');
-                el.className = `flex items-center justify-between p-3 rounded-lg border ${t.done ? 'bg-gray-50 dark:bg-gray-900 opacity-60' : 'bg-white dark:bg-cardbg border-gray-200 dark:border-gray-700'}`;
-                el.innerHTML = `<div class="flex items-center gap-3 cursor-pointer flex-1" onclick="tTodo(${t.id})"><div class="w-5 h-5 rounded border flex items-center justify-center ${t.done ? 'bg-green-500 border-green-500 text-white' : 'border-gray-400'}">${t.done ? '✓' : ''}</div><span class="${t.done ? 'line-through' : ''}">${t.text}</span></div><button onclick="dTodo(${t.id})" class="text-red-400">✕</button>`;
-                list.appendChild(el);
-            });
-        }
-        function tTodo(id) { const t = userData.todos.find(x => x.id === id); t.done = !t.done; saveData(); renderTodos(); }
-        function dTodo(id) { userData.todos = userData.todos.filter(x => x.id !== id); saveData(); renderTodos(); }
+    $('#btnCalc').addEventListener('click', ()=> calcAvailability($('#targetDate').value));
+    $('#targetDate').addEventListener('keydown', (e)=>{ if (e.key === 'Enter') calcAvailability($('#targetDate').value); });
 
-        // --- UTIL ---
-        function switchTab(t) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => { el.classList.remove('border-accent','text-accent'); el.classList.add('border-transparent','text-gray-500'); });
-            document.getElementById(`tab-${t}`).classList.add('active');
-            document.getElementById(`btn-${t}`).classList.add('border-accent','text-accent');
-            document.getElementById(`btn-${t}`).classList.remove('border-transparent','text-gray-500');
-            if(t==='habits') { renderHabits(); renderMainTrend(); }
-        }
-        function toggleTheme() { document.documentElement.classList.toggle('dark'); }
+    $('#baseDate').addEventListener('change', (e)=>{
+      const v = e.target.value;
+      if (v) setBaseDate(v);
+    });
 
-        // Boot
-        initApp();
-    </script>
+    $('#btnGoToday').addEventListener('click', ()=> setBaseDate(fmtDate(new Date())));
+
+    $('#btnHistApply').addEventListener('click', ()=>{ histPage = 0; renderHistory(); });
+    $('#btnHistPrev').addEventListener('click', ()=>{ histPage = Math.max(0, histPage-1); renderHistory(); });
+    $('#btnHistNext').addEventListener('click', ()=>{ histPage = histPage+1; renderHistory(); });
+
+    // Stop running timers on tab close? We keep them running and resume on reload.
+    // But we also auto-save periodically.
+    setInterval(()=>{
+      saveData();
+      // keep UI accurate for running timers
+      renderSummary();
+      renderHabits();
+      // keep countdown accurate (doesn't lose state on refresh)
+      updateCountdownLive();
+    }, 1000);
+
+    setInterval(tickClock, 1000);
+
+    // Initialize default dates
+    (function init(){
+      const todayStr = fmtDate(new Date());
+      $('#baseDate').value = todayStr;
+      baseDateStr = todayStr;
+
+      const today = new Date();
+      const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 730);
+      $('#histFrom').value = fmtDate(from);
+      $('#histTo').value = todayStr;
+
+      // Restore saved countdown target (persisted across refresh)
+      const savedTarget = localStorage.getItem(TARGET_DATE_KEY);
+      if (savedTarget){
+        setTargetInputs(savedTarget);
+        calcAvailability(savedTarget);
+      } else {
+        setTargetInputs('');
+        updateCountdownUI(null);
+      }
+
+      tickClock();
+      render();
+    })();
+
+    // Keyboard: ESC closes modal
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeModal(); });
+  </script>
 </body>
 </html>
